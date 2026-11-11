@@ -1513,10 +1513,12 @@ def flat_top_logprobs_layout(
     """
     num_rows = len(top_logprobs_val)
     null_prefix = 0
-    while null_prefix < num_rows and not top_logprobs_val[null_prefix]:
+    while null_prefix < num_rows and (
+        top_logprobs_val[null_prefix] is None or len(top_logprobs_val[null_prefix]) == 0
+    ):
         null_prefix += 1
     val_rows = top_logprobs_val[null_prefix:]
-    k = len(val_rows[0]) if val_rows else top_logprobs_num
+    k = len(val_rows[0]) if len(val_rows) else top_logprobs_num
     for offset, row in enumerate(val_rows):
         if row is None or len(row) != k:
             raise ValueError(
@@ -1653,6 +1655,10 @@ class BatchTokenIDOutput(BaseBatchReq, kw_only=True):
     input_top_logprobs_idx_flat: Optional[List[Optional[np.ndarray]]] = None
     input_top_logprobs_flat_null_prefix: Optional[List[Optional[int]]] = None
 
+    # Binary generated-token score chunks, with duplicates preserved for MC32.
+    output_top_logprobs_val_array: Optional[List[Optional[np.ndarray]]] = None
+    output_top_logprobs_idx_array: Optional[List[Optional[np.ndarray]]] = None
+
 
 class BatchStrOutput(BaseBatchReq, kw_only=True):
     # The finish reason
@@ -1747,6 +1753,10 @@ class BatchStrOutput(BaseBatchReq, kw_only=True):
     input_top_logprobs_val_flat: Optional[List[Optional[np.ndarray]]] = None
     input_top_logprobs_idx_flat: Optional[List[Optional[np.ndarray]]] = None
     input_top_logprobs_flat_null_prefix: Optional[List[Optional[int]]] = None
+
+    # Binary generated-token score chunks, with duplicates preserved for MC32.
+    output_top_logprobs_val_array: Optional[List[Optional[np.ndarray]]] = None
+    output_top_logprobs_idx_array: Optional[List[Optional[np.ndarray]]] = None
 
 
 class BatchEmbeddingOutput(BaseBatchReq, kw_only=True):

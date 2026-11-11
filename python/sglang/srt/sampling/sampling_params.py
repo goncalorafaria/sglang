@@ -161,6 +161,10 @@ class SamplingParams(msgspec.Struct, kw_only=True, array_like=True):
     is_normalized: bool = False  # set by normalize()
     ebnf_full_assistant: bool = False
 
+    # Generated-token auxiliary scores. MC draws preserve duplicates.
+    score_centering_samples: int = 0
+    array_output_logprobs: bool = False
+
     def __post_init__(self):
         # For non-optional params, treat None as "use default" so that callers
         # (e.g. /generate) can pass null without crashing verify().
@@ -222,6 +226,25 @@ class SamplingParams(msgspec.Struct, kw_only=True, array_like=True):
             self.top_k = TOP_K_ALL  # whole vocabulary
 
     def verify(self, vocab_size):
+        if self.score_centering_samples not in (0, 32, 64, 128):
+            raise ValueError("score_centering_samples must be 0, 32, 64, or 128")
+        if self.score_centering_samples:
+            if not self.array_output_logprobs:
+                raise ValueError("MC probes require array_output_logprobs=True")
+            if (
+                self.top_k != TOP_K_ALL
+                or self.top_p != 1.0
+                or self.min_p != 0.0
+                or self.temperature <= 0
+                or self.beam_width is not None
+            ):
+                raise ValueError(
+                    "MC probes require positive temperature and untruncated categorical sampling"
+                )
+            if self.sampling_seed is None:
+                raise ValueError(
+                    "MC probes require an explicit sampling_seed for auxiliary draws"
+                )
         if self.beam_width is not None and self.beam_width < 1:
             raise ValueError(f"beam_width must be at least 1, got {self.beam_width}.")
         if not math.isfinite(self.temperature) or self.temperature < 0.0:
